@@ -24,6 +24,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
   private static final String TAG = MainActivity.class.getCanonicalName();
   private Spinner sensorSpinner;
   private Button but;
+  private Button setActivity;
+  private Button fallTestStartBut;
   private String selectedSensor = "";
   private SensorBase sb;
   private boolean isRunning = false;
@@ -35,7 +37,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
   public enum SENSORS_LIST {
     ACCELEROMETER,
     GYROSCOPE,
-    GRAVITY_SENSOR
+    GRAVITY_SENSOR,
+    ALL
   }
 
   @Override
@@ -47,7 +50,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     initSpinner();
     but = findViewById(R.id.startBut);
     but.setText("START");
+
+    setActivity = findViewById(R.id.setActivity);
+    setActivity.setText("insert activity break");
+
+    fallTestStartBut = findViewById(R.id.fallTestStart);
+    fallTestStartBut.setText("insert fall testing break");
+
     if(but != null) but.setOnClickListener(this);
+    if(setActivity != null) setActivity.setOnClickListener(this);
+    if(fallTestStartBut != null) fallTestStartBut.setOnClickListener(this);
   }
 
   private void initSpinner(){
@@ -58,6 +70,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     sensor_list.add(SENSORS_LIST.ACCELEROMETER);
     sensor_list.add(SENSORS_LIST.GYROSCOPE);
     sensor_list.add(SENSORS_LIST.GRAVITY_SENSOR);
+    sensor_list.add(SENSORS_LIST.ALL);
 
     ArrayAdapter<SENSORS_LIST> dataAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, sensor_list);
 
@@ -66,10 +79,28 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
   @Override
   public void onClick(View view) {
-    if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-      runLogger();
-    } else {
-      requestPermissions(permissions, 200);
+    switch(view.getId()) {
+      case R.id.startBut:
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+          runLogger();
+        } else {
+          requestPermissions(permissions, 200);
+        }
+        break;
+
+      case R.id.setActivity:
+        if(isRunning)
+          sb.insertActivityBreak();
+        else
+          Toast.makeText(this, "Start logging to insert break", Toast.LENGTH_SHORT).show();
+        break;
+
+      case R.id.fallTestStart:
+        if(isRunning)
+          sb.insertFallBreak();
+        else
+          Toast.makeText(this, "Start logging to insert break", Toast.LENGTH_SHORT).show();
+        break;
     }
   }
 

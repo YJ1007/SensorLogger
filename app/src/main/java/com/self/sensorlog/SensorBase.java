@@ -17,6 +17,9 @@ public class SensorBase implements SensorEventListener {
   private static final String TAG = SensorBase.class.getCanonicalName();
   private Context mContext;
   private Sensor selSensor;
+  private Sensor grav;
+  private Sensor gyro;
+  private Sensor acc;
   private String selSensorId;
   private SensorManager mSensorManager;
   private int kMinSamplingPeriodUS = 2 * 1000; //micro seconds
@@ -36,20 +39,46 @@ public class SensorBase implements SensorEventListener {
     else if(sensorId.equals(MainActivity.SENSORS_LIST.GRAVITY_SENSOR.toString()))
       selSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
-    boolean ret = !(selSensor == null);
+    else if(sensorId.equals(MainActivity.SENSORS_LIST.ALL.toString())){
+      acc = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+      gyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+      grav = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+    }
+
+    boolean ret;
+
+    if(sensorId.equals(MainActivity.SENSORS_LIST.ALL.toString()))
+      ret = !(acc == null || gyro == null || grav == null);
+    else
+      ret = !(selSensor == null);
+
     Log.v(TAG, "selSenosr " + selSensor + " ret " + ret);
     if(ret) selSensorId = sensorId;
     return ret;
   }
 
   private void registerListener(){
+    if(selSensorId.equals(MainActivity.SENSORS_LIST.ALL.toString())){
+      boolean accRc = mSensorManager.registerListener(this, acc, acc.getMinDelay());
+      boolean gravRc = mSensorManager.registerListener(this, grav, grav.getMinDelay());
+      boolean gyroRc = mSensorManager.registerListener(this, gyro, gyro.getMinDelay());
+
+      if(!accRc || !gravRc || !gyroRc)
+        sensorNotSupportedErrFunc();
+
+      return;
+    }
+
     int minDelay = selSensor.getMinDelay();
     boolean sensorRc = mSensorManager.registerListener(this, selSensor, minDelay > 0 ? minDelay : kMinSamplingPeriodUS);
-    if(!sensorRc){
-      stopLogger();
-      Toast.makeText(mContext, "sensor not supported for specified update interval", Toast.LENGTH_LONG).show();
-      throw new RuntimeException("sensor not supported for specified update interval");
-    }
+
+    if(!sensorRc) sensorNotSupportedErrFunc();
+  }
+
+  void sensorNotSupportedErrFunc(){
+    stopLogger();
+    Toast.makeText(mContext, "sensor not supported for specified update interval", Toast.LENGTH_LONG).show();
+    throw new RuntimeException("sensor not supported for specified update interval");
   }
 
   private void prepareDirectory(){
@@ -73,16 +102,51 @@ public class SensorBase implements SensorEventListener {
 
   void stopLogger(){
     mSensorManager.flush(this);
-    mSensorManager.unregisterListener(this, selSensor);
+    if(selSensorId.equals(MainActivity.SENSORS_LIST.ALL.toString())){
+      mSensorManager.unregisterListener(this, acc);
+      mSensorManager.unregisterListener(this, grav);
+      mSensorManager.unregisterListener(this, gyro);
+    }
+    else
+      mSensorManager.unregisterListener(this, selSensor);
+
     selSensor = null;
+    acc = null;
+    grav = null;
+    gyro = null;
     selSensorId = "";
+  }
+
+  void insertActivityBreak(){
+    if(mWriter != null) {
+      try {
+        mWriter.write("Activity Break ==============================================>>>>\n");
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  void insertFallBreak(){
+    if(mWriter != null) {
+      try {
+        mWriter.write("Fall Break ==============================================>>>>\n");
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   @Override
   public void onSensorChanged(SensorEvent evt) {
     if(mWriter != null){
       try {
-        mWriter.write(String.format("%d; %f; %f; %f;\n", evt.timestamp, evt.values[0], evt.values[1], evt.values[2]));
+        if(selSensorId.equals(MainActivity.SENSORS_LIST.ALL.toString())){
+          mWriter.write(evt.sensor.getStringType()+ " ::: " + String.format("%d; %f; %f; %f;\n", evt.timestamp, evt.values[0], evt.values[1], evt.values[2]));
+        }
+        else {
+          mWriter.write(String.format("%d; %f; %f; %f;\n", evt.timestamp, evt.values[0], evt.values[1], evt.values[2]));
+        }
       } catch (IOException e) {
         e.printStackTrace();
       }
